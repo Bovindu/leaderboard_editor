@@ -122,6 +122,7 @@ def parse_contestant(obj_str):
     rank_match = re.search(r"rank\s*:\s*(\d+)", obj_str)
     name_match = re.search(r"name\s*:\s*\"([^\"]+)\"", obj_str)
     hours_match = re.search(r"hours\s*:\s*(\d+)", obj_str)
+    money_match = re.search(r"money\s*:\s*(\d+)", obj_str)
     pic_match = re.search(r"profilePic\s*:\s*([^,\}]+)", obj_str)
 
     if rank_match:
@@ -130,6 +131,8 @@ def parse_contestant(obj_str):
         c['name'] = name_match.group(1)
     if hours_match:
         c['hours'] = int(hours_match.group(1))
+    if money_match:
+        c['money'] = int(money_match.group(1))
     if pic_match:
         pic_val = pic_match.group(1).strip()
         # Remove quotes if they exist
@@ -158,12 +161,13 @@ def write_leaderboard(imports, contestants):
         for c in contestants:
             name = c['name']
             hours = c['hours']
+            money = c['money']
             rank = c['rank']
             if c.get('picType') == 'url':
                 pic_str = f"\"{c['profilePic']}\""
             else:
                 pic_str = c['profilePic']
-            line = f"  {{ rank: {rank}, name: \"{name}\", hours: {hours}, profilePic: {pic_str} }},\n"
+            line = f"  {{ rank: {rank}, name: \"{name}\", hours: {hours}, money: {money}, profilePic: {pic_str} }},\n"
             f.write(line)
         f.write("];\n")
 
@@ -180,14 +184,16 @@ def sort_and_refresh():
 def add_contestant():
     name = entry_name.get().strip()
     hours_str = entry_hours.get().strip()
+    money_str = entry_money.get().strip()
     pic = entry_pic.get().strip()
     if not name or not hours_str:
         messagebox.showerror("Input Error", "Name and Hours are required")
         return
     try:
         hours = int(hours_str)
+        money = int(money_str) if money_str else 0
     except ValueError:
-        messagebox.showerror("Input Error", "Hours must be an integer")
+        messagebox.showerror("Input Error", "Hours and Money must be integers")
         return
     # Determine pic type
     if pic.startswith("http://") or pic.startswith("https://"):
@@ -196,7 +202,7 @@ def add_contestant():
         pic_type = 'import'
     else:
         pic_type = 'url'
-    new_contestant = {'name': name, 'hours': hours, 'profilePic': pic, 'picType': pic_type}
+    new_contestant = {'name': name, 'hours': hours, 'money': money, 'profilePic': pic, 'picType': pic_type}
     contestants.append(new_contestant)
     sort_and_refresh()
     clear_form()
@@ -208,12 +214,14 @@ def update_contestant():
     index = sel[0]
     name = entry_name.get().strip()
     hours_str = entry_hours.get().strip()
+    money_str = entry_money.get().strip()
     pic = entry_pic.get().strip()
     if not name or not hours_str:
         messagebox.showerror("Input Error", "Name and Hours are required")
         return
     try:
         hours = int(hours_str)
+        money = int(money_str)
     except ValueError:
         messagebox.showerror("Input Error", "Hours must be an integer")
         return
@@ -226,6 +234,7 @@ def update_contestant():
     # Update the selected contestant's data
     contestants[index]['name'] = name
     contestants[index]['hours'] = hours
+    contestants[index]['money'] = money
     contestants[index]['profilePic'] = pic
     contestants[index]['picType'] = pic_type
     sort_and_refresh()
@@ -250,12 +259,15 @@ def on_select(evt):
     entry_name.insert(0, c['name'])
     entry_hours.delete(0, tk.END)
     entry_hours.insert(0, str(c['hours']))
+    entry_money.delete(0, tk.END)
+    entry_money.insert(0, str(c.get('money', 0)))
     entry_pic.delete(0, tk.END)
     entry_pic.insert(0, c['profilePic'])
 
 def clear_form():
     entry_name.delete(0, tk.END)
     entry_hours.delete(0, tk.END)
+    entry_money.delete(0, tk.END)
     entry_pic.delete(0, tk.END)
     listbox.selection_clear(0, tk.END)
 
@@ -327,7 +339,7 @@ frame_form = tk.Frame(root)
 frame_form.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=5, pady=5)
 
 tk.Label(frame_form, text="Contestant Update").grid(row=0, column=0, columnspan=2, pady=5)
-tk.Label(frame_form, text="Session Update").grid(row=6, column=0, columnspan=2, pady=(15, 5))
+tk.Label(frame_form, text="Session Update").grid(row=7, column=0, columnspan=2, pady=(15, 5))
 
 tk.Label(frame_form, text="Name:").grid(row=1, column=0, sticky=tk.W)
 entry_name = tk.Entry(frame_form)
@@ -337,35 +349,39 @@ tk.Label(frame_form, text="Hours:").grid(row=2, column=0, sticky=tk.W)
 entry_hours = tk.Entry(frame_form)
 entry_hours.grid(row=2, column=1, pady=2, sticky="ew")
 
-tk.Label(frame_form, text="ProfilePic:").grid(row=3, column=0, sticky=tk.W)
+tk.Label(frame_form, text="Money:").grid(row=3, column=0, sticky=tk.W)
+entry_money = tk.Entry(frame_form)
+entry_money.grid(row=3, column=1, pady=2, sticky="ew")
+
+tk.Label(frame_form, text="ProfilePic:").grid(row=4, column=0, sticky=tk.W)
 entry_pic = tk.Entry(frame_form)
-entry_pic.grid(row=3, column=1, pady=2, sticky="ew")
+entry_pic.grid(row=4, column=1, pady=2, sticky="ew")
 
-tk.Label(frame_form, text="Pool Prize:").grid(row=7, column=0, sticky=tk.W)
+tk.Label(frame_form, text="Pool Prize:").grid(row=8, column=0, sticky=tk.W)
 entry_pool_price = tk.Entry(frame_form)
-entry_pool_price.grid(row=7, column=1, pady=2, sticky="ew")
+entry_pool_price.grid(row=8, column=1, pady=2, sticky="ew")
 
-tk.Label(frame_form, text="Prize Per Hour:").grid(row=8, column=0, sticky=tk.W)
+tk.Label(frame_form, text="Prize Per Hour:").grid(row=9, column=0, sticky=tk.W)
 entry_price_per_hour = tk.Entry(frame_form)
-entry_price_per_hour.grid(row=8, column=1, pady=2, sticky="ew")
+entry_price_per_hour.grid(row=9, column=1, pady=2, sticky="ew")
 
-tk.Label(frame_form, text="Total Hour:").grid(row=9, column=0, sticky=tk.W)
+tk.Label(frame_form, text="Total Hour:").grid(row=10, column=0, sticky=tk.W)
 entry_total_hour = tk.Entry(frame_form)
-entry_total_hour.grid(row=9, column=1, pady=2, sticky="ew")
+entry_total_hour.grid(row=10, column=1, pady=2, sticky="ew")
 
 # Buttons
 btn_add = tk.Button(frame_form, text="Add", command=add_contestant)
-btn_add.grid(row=4, column=0, pady=5, sticky="ew")
+btn_add.grid(row=5, column=0, pady=5, sticky="ew")
 btn_update = tk.Button(frame_form, text="Update", command=update_contestant)
-btn_update.grid(row=4, column=1, pady=5, sticky="ew")
+btn_update.grid(row=5, column=1, pady=5, sticky="ew")
 btn_delete = tk.Button(frame_form, text="Delete", command=delete_contestant)
-btn_delete.grid(row=5, column=0, pady=5, sticky="ew")
+btn_delete.grid(row=6, column=0, pady=5, sticky="ew")
 btn_submit = tk.Button(frame_form, text="Submit", command=submit_changes)
-btn_submit.grid(row=5, column=1, pady=5, sticky="ew")
+btn_submit.grid(row=6, column=1, pady=5, sticky="ew")
 btn_open = tk.Button(frame_form, text="Submit", command=update_constants)
-btn_open.grid(row=10, column=0, columnspan=2, pady=5, sticky="ew")
+btn_open.grid(row=11, column=0, columnspan=2, pady=5, sticky="ew")
 btn_git = tk.Button(frame_form, text="Commit & Push", command=commit_and_push, fg='#FF0000')
-btn_git.grid(row=11, column=0, columnspan=2, pady=(20, 0), sticky="ew")
+btn_git.grid(row=12, column=0, columnspan=2, pady=(20, 0), sticky="ew")
 
 # Make form columns expand
 frame_form.columnconfigure(1, weight=1)

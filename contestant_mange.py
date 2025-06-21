@@ -3,21 +3,35 @@ import re
 import subprocess
 import tkinter as tk
 from tkinter import ttk, messagebox
-from git import Repo
+from git import Repo, GitCommandError
 import json
+import sys
 from datetime import datetime
 
 # Get the directory where this script is located
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(SCRIPT_DIR, 'config_form.json')
 
+def get_base_path():
+    """Get the base path for the application, handling PyInstaller bundled files."""
+    if getattr(sys, 'frozen', False):
+        # Running as a bundled executable (PyInstaller)
+        base_path = sys._MEIPASS
+    else:
+        # Running in development mode
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    return base_path
+
 def read_config():
     try:
-        with open(CONFIG_PATH, 'r') as file:
+        base_path = get_base_path()
+        config_path = os.path.join(base_path, 'config_form.json')
+        
+        with open(config_path, 'r') as file:
             config = json.load(file)
             
             # Validate required fields
-            if not all(key in config for key in ['LEADERBOARD_FILE', 'CONSTANTS_FILE','GIT_REPO_PATH','DATE_CONFIG']):
+            if not all(key in config for key in ['LEADERBOARD_FILE', 'CONSTANTS_FILE', 'GIT_REPO_PATH', 'DATE_CONFIG']):
                 raise ValueError("Missing required fields in config.json")
                 
             return config
@@ -310,11 +324,28 @@ def open_constants():
 def commit_and_push():
     try:
         repo = Repo(GIT_REPO_PATH)
+        origin = repo.remote(name='origin')
+
+        # Stash local changes if any
+        if repo.is_dirty(untracked_files=True):
+            repo.git.stash('save', 'Auto-stash before pull')
+
+        # Pull with rebase
+        origin.pull(rebase=True)
+
+        # Apply stashed changes back (if any)
+        stashes = repo.git.stash('list')
+        if stashes:
+            repo.git.stash('pop')
+
+        # Stage, commit, and push
         repo.git.add(update=True)
         repo.index.commit("Update leaderboard data")
-        origin = repo.remote(name='origin')
         origin.push()
-        messagebox.showinfo("Git", "Changes committed and pushed to GitHub.")
+
+        messagebox.showinfo("Git", "Changes pulled, committed, and pushed to GitHub.")
+    except GitCommandError as git_err:
+        messagebox.showerror("Git Error", f"Git command failed:\n{git_err}")
     except Exception as e:
         messagebox.showerror("Git Error", str(e))
 

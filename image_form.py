@@ -3,11 +3,11 @@ from tkinter import messagebox, simpledialog, filedialog
 import subprocess
 import re
 import os
-from git import Repo
+from git import Repo, GitCommandError
 
 # Path to the .tsx file
-FILE_PATH = r"C:\Users\HR.Info\Documents\Leaderboard\leader_board\src\components\ImageSlideshow.tsx"
-GIT_REPO_PATH = r"C:\Users\HR.Info\Documents\WLeaderboard\leader_board"
+FILE_PATH = r"D:\Leaderboard\page\leader_board\src\components\ImageSlideshow.tsx"
+GIT_REPO_PATH = r"D:\Leaderboard\page\leader_board"
 
 class SlideEditorApp:
     def __init__(self, root):
@@ -81,11 +81,28 @@ class SlideEditorApp:
     def push_to_git(self):
         try:
             repo = Repo(GIT_REPO_PATH)
+            origin = repo.remote(name='origin')
+
+            # Stash local changes if any
+            if repo.is_dirty(untracked_files=True):
+                repo.git.stash('save', 'Auto-stash before pull')
+
+            # Pull with rebase
+            origin.pull(rebase=True)
+
+            # Apply stashed changes back (if any)
+            stashes = repo.git.stash('list')
+            if stashes:
+                repo.git.stash('pop')
+
+            # Stage, commit, and push
             repo.git.add(update=True)
             repo.index.commit("Update leaderboard data")
-            origin = repo.remote(name='origin')
             origin.push()
-            messagebox.showinfo("Git", "Changes committed and pushed to GitHub.")
+
+            messagebox.showinfo("Git", "Changes pulled, committed, and pushed to GitHub.")
+        except GitCommandError as git_err:
+            messagebox.showerror("Git Error", f"Git command failed:\n{git_err}")
         except Exception as e:
             messagebox.showerror("Git Error", str(e))
 

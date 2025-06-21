@@ -1,7 +1,7 @@
 {
-    "CONSTANTS_FILE": "C:\\Users\\bovin\\Documents\\Web projects\\leader_board\\src\\config\\constants.ts",
-    "LEADERBOARD_FILE":"C:\\Users\\bovin\\Documents\\Web projects\\leader_board\\src\\data\\leaderboard-data.ts",
-    "GIT_REPO_PATH":"C:\\Users\\bovin\\Documents\\Web projects\\leader_board",
-    "DATE_CONFIG":"C:\\Users\\bovin\\Documents\\Web projects\\leader_board\\src\\config\\date_up.ts",
+    "CONSTANTS_FILE": "D:\\Leaderboard\\page\\leader_board\\src\\config\\constants.ts",
+    "LEADERBOARD_FILE":"D:\\Leaderboard\\page\\leader_board\\src\\data\\leaderboard-data.ts",
+    "GIT_REPO_PATH":"D:\\Leaderboard\\page\\leader_board",
+    "DATE_CONFIG":"D:\\Leaderboard\\page\\leader_board\\src\\config\\date_up.ts",
     "TOTAL_HOURS": 20
 }

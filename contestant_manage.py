@@ -75,6 +75,18 @@ def update_date():
     except Exception as e:
         messagebox.showerror("Error", str(e))
 
+# --- New function to calculate prize based on hours ---
+def calculate_prize(hours):
+    """
+    Calculates the prize based on the given hours using a tiered system.
+    """
+    if hours <= 150:
+        prize = hours * 20
+    elif hours <= 300:
+        prize = 150 * 20 + (hours - 150) * 40
+    else:
+        prize = 150 * 20 + 150 * 40 + (hours - 300) * 60
+    return prize
 
 # Helper: read and parse the TypeScript data file
 def read_leaderboard():
@@ -198,24 +210,27 @@ def sort_and_refresh():
 def add_contestant():
     name = entry_name.get().strip()
     hours_str = entry_hours.get().strip()
-    money_str = entry_money.get().strip()
-    pic = entry_pic.get().strip()
+    pic = entry_pic.get().strip() # Still allow manual pic input
+
     if not name or not hours_str:
         messagebox.showerror("Input Error", "Name and Hours are required")
         return
     try:
         hours = int(hours_str)
-        money = int(money_str) if money_str else 0
+        # Calculate money automatically
+        money = calculate_prize(hours)
     except ValueError:
-        messagebox.showerror("Input Error", "Hours and Money must be integers")
+        messagebox.showerror("Input Error", "Hours must be an integer")
         return
+    
     # Determine pic type
     if pic.startswith("http://") or pic.startswith("https://"):
         pic_type = 'url'
     elif pic:  # assume import identifier if not blank
         pic_type = 'import'
     else:
-        pic_type = 'url'
+        pic_type = 'url' # Default to URL if blank, or you can make it empty string
+
     new_contestant = {'name': name, 'hours': hours, 'money': money, 'profilePic': pic, 'picType': pic_type}
     contestants.append(new_contestant)
     sort_and_refresh()
@@ -228,27 +243,30 @@ def update_contestant():
     index = sel[0]
     name = entry_name.get().strip()
     hours_str = entry_hours.get().strip()
-    money_str = entry_money.get().strip()
     pic = entry_pic.get().strip()
+
     if not name or not hours_str:
         messagebox.showerror("Input Error", "Name and Hours are required")
         return
     try:
         hours = int(hours_str)
-        money = int(money_str)
+        # Calculate money automatically
+        money = calculate_prize(hours)
     except ValueError:
         messagebox.showerror("Input Error", "Hours must be an integer")
         return
+
     if pic.startswith("http://") or pic.startswith("https://"):
         pic_type = 'url'
     elif pic:
         pic_type = 'import'
     else:
         pic_type = 'url'
+    
     # Update the selected contestant's data
     contestants[index]['name'] = name
     contestants[index]['hours'] = hours
-    contestants[index]['money'] = money
+    contestants[index]['money'] = money # Money is now calculated
     contestants[index]['profilePic'] = pic
     contestants[index]['picType'] = pic_type
     sort_and_refresh()
@@ -273,17 +291,49 @@ def on_select(evt):
     entry_name.insert(0, c['name'])
     entry_hours.delete(0, tk.END)
     entry_hours.insert(0, str(c['hours']))
+    
+    # Display the calculated money, but don't allow editing (make it read-only)
+    entry_money.config(state='normal') # Enable to delete
     entry_money.delete(0, tk.END)
     entry_money.insert(0, str(c.get('money', 0)))
+    entry_money.config(state='readonly') # Disable after inserting
+
     entry_pic.delete(0, tk.END)
     entry_pic.insert(0, c['profilePic'])
 
 def clear_form():
     entry_name.delete(0, tk.END)
     entry_hours.delete(0, tk.END)
+    
+    # Clear the money field, but keep it read-only
+    entry_money.config(state='normal')
     entry_money.delete(0, tk.END)
+    entry_money.config(state='readonly')
+
     entry_pic.delete(0, tk.END)
     listbox.selection_clear(0, tk.END)
+
+# --- New function to update the calculated prize in the GUI ---
+def update_calculated_money(*args):
+    try:
+        hours_str = entry_hours.get().strip()
+        if hours_str:
+            hours = int(hours_str)
+            calculated_money = calculate_prize(hours)
+            entry_money.config(state='normal') # Enable to update
+            entry_money.delete(0, tk.END)
+            entry_money.insert(0, str(calculated_money))
+            entry_money.config(state='readonly') # Disable again
+        else:
+            entry_money.config(state='normal')
+            entry_money.delete(0, tk.END)
+            entry_money.config(state='readonly')
+    except ValueError:
+        entry_money.config(state='normal')
+        entry_money.delete(0, tk.END)
+        entry_money.insert(0, "Invalid Hours")
+        entry_money.config(state='readonly')
+
 
 def update_constants():
     update_date()
@@ -292,8 +342,8 @@ def update_constants():
         price_per_hour = entry_price_per_hour.get()
         total_hour = entry_total_hour.get()
 
-        if not pool_price.isdigit() or not price_per_hour.isdigit():
-            messagebox.showerror("Invalid Input", "Please enter valid numbers.")
+        if not pool_price.isdigit() or not price_per_hour.isdigit() or not total_hour.isdigit(): # Added total_hour validation
+            messagebox.showerror("Invalid Input", "Please enter valid numbers for Pool Prize, Prize Per Hour, and Total Hour.")
             return
         
         # Get today's date in YYYY/MM/DD format
@@ -379,10 +429,14 @@ entry_name.grid(row=1, column=1, pady=2, sticky="ew")
 tk.Label(frame_form, text="Hours:").grid(row=2, column=0, sticky=tk.W)
 entry_hours = tk.Entry(frame_form)
 entry_hours.grid(row=2, column=1, pady=2, sticky="ew")
+# Bind the entry_hours to update the calculated money
+entry_hours.bind('<KeyRelease>', update_calculated_money)
+
 
 tk.Label(frame_form, text="Money:").grid(row=3, column=0, sticky=tk.W)
-entry_money = tk.Entry(frame_form)
+entry_money = tk.Entry(frame_form, state='readonly') # Make this field read-only
 entry_money.grid(row=3, column=1, pady=2, sticky="ew")
+
 
 tk.Label(frame_form, text="ProfilePic:").grid(row=4, column=0, sticky=tk.W)
 entry_pic = tk.Entry(frame_form)
@@ -409,7 +463,7 @@ btn_delete = tk.Button(frame_form, text="Delete", command=delete_contestant)
 btn_delete.grid(row=6, column=0, pady=5, sticky="ew")
 btn_submit = tk.Button(frame_form, text="Submit", command=submit_changes)
 btn_submit.grid(row=6, column=1, pady=5, sticky="ew")
-btn_open = tk.Button(frame_form, text="Submit", command=update_constants)
+btn_open = tk.Button(frame_form, text="Submit Constants", command=update_constants) # Renamed for clarity
 btn_open.grid(row=11, column=0, columnspan=2, pady=5, sticky="ew")
 btn_git = tk.Button(frame_form, text="Commit & Push", command=commit_and_push, fg='#FF0000')
 btn_git.grid(row=12, column=0, columnspan=2, pady=(20, 0), sticky="ew")
